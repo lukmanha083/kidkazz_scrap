@@ -5,6 +5,7 @@ go 1.25.5
 require (
 	github.com/andybalholm/brotli v1.2.0
 	github.com/go-rod/rod v0.116.2
+	github.com/joho/godotenv v1.5.1
 	github.com/mark3labs/mcp-go v0.44.0
 	github.com/spf13/cobra v1.10.2
 	github.com/temoto/robotstxt v1.1.2

@@ -153,7 +153,9 @@ Replace `/path/to/kidkazz` with the absolute path to the built binary.
 
 ## Configuration
 
-Configuration is loaded in order: **defaults** -> **environment variables** -> **CLI flags**. Later sources override earlier ones.
+Configuration is loaded in order: **defaults** -> **`.env` file** -> **environment variables** -> **CLI flags**. Later sources override earlier ones.
+
+A `.env` file in the working directory is loaded automatically at startup (if present). Variables already set in the environment take precedence over `.env` values.
 
 ### Environment Variables
 
@@ -203,7 +205,7 @@ DECODO_COUNTRY=id
 DECODO_CITY=jakarta
 ```
 
-> The app does not load `.env` files automatically. Source it in your shell (`source .env` or `export $(cat .env | xargs)`) or set the variables through your MCP server config's `env` block.
+> Place this `.env` file in the directory where you run the `kidkazz` binary. It is loaded automatically at startup.
 
 ### Proxy Modes
 

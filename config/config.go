@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds all application configuration.
@@ -42,8 +44,11 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadFromEnv overrides config values from environment variables.
+// LoadFromEnv loads .env file (if present) then overrides config from environment variables.
 func (c *Config) LoadFromEnv() {
+	// Auto-load .env file; silently ignored if missing
+	_ = godotenv.Load()
+
 	if v := os.Getenv("KIDKAZZ_PLATFORM"); v != "" {
 		c.DefaultPlatform = v
 	}
