@@ -24,8 +24,8 @@ All HTTP requests pass through a **stealth pipeline**: robots.txt check, rate li
 ## Installation
 
 ```bash
-git clone https://github.com/lukman83/kidkazz-scrap.git
-cd kidkazz-scrap
+git clone https://github.com/lukmanha083/kidkazz_scrap.git
+cd kidkazz_scrap
 go build -o kidkazz .
 ```
 
