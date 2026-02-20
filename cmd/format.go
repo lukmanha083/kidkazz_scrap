@@ -24,6 +24,9 @@ func printProductsTable(products []models.Product) {
 			fmt.Fprint(os.Stdout, " [Official]")
 		}
 		fmt.Fprintln(os.Stdout)
+		if p.Category != "" {
+			fmt.Fprintf(os.Stdout, "    Category: %s\n", formatBreadcrumb(p.Category))
+		}
 		fmt.Fprintf(os.Stdout, "    %s\n", cleanURL(p.URL))
 	}
 }
