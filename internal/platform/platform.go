@@ -24,9 +24,10 @@ type Request struct {
 }
 
 type Result struct {
-	Products []models.Product
-	Strategy string
-	Raw      json.RawMessage
+	Products  []models.Product
+	TotalData int
+	Strategy  string
+	Raw       json.RawMessage
 }
 
 type SearchOpts struct {

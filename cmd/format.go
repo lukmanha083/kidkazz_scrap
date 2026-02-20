@@ -15,15 +15,36 @@ func printProductsTable(products []models.Product) {
 		if i > 0 {
 			fmt.Fprintln(os.Stdout)
 		}
-		fmt.Fprintf(os.Stdout, " %d. %s\n", i+1, p.Name)
-		fmt.Fprintf(os.Stdout, "    Price: %s  |  Shop: %s", formatPrice(p.Price), p.Shop.Name)
+		name := p.Name
+		if p.IsAd {
+			name = "[AD] " + name
+		}
+		fmt.Fprintf(os.Stdout, " %d. %s\n", i+1, name)
+
+		// Price line with optional original price and discount
+		priceLine := "    Price: " + formatPrice(p.Price)
+		if p.OriginalPrice > p.Price && p.DiscountPercent > 0 {
+			priceLine += fmt.Sprintf("  (was %s, -%d%%)", formatPrice(p.OriginalPrice), p.DiscountPercent)
+		}
+		priceLine += "  |  Shop: " + p.Shop.Name
 		if p.Shop.City != "" {
-			fmt.Fprintf(os.Stdout, " (%s)", p.Shop.City)
+			priceLine += fmt.Sprintf(" (%s)", p.Shop.City)
 		}
 		if p.Shop.IsOfficial {
-			fmt.Fprint(os.Stdout, " [Official]")
+			priceLine += " [Official]"
 		}
-		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, priceLine)
+
+		if p.PriceRange != "" {
+			fmt.Fprintf(os.Stdout, "    Range: %s\n", p.PriceRange)
+		}
+		if len(p.Labels) > 0 {
+			var tags []string
+			for _, l := range p.Labels {
+				tags = append(tags, "["+l.Title+"]")
+			}
+			fmt.Fprintf(os.Stdout, "    %s\n", strings.Join(tags, " "))
+		}
 		if p.Category != "" {
 			fmt.Fprintf(os.Stdout, "    Category: %s\n", formatBreadcrumb(p.Category))
 		}
@@ -58,8 +79,15 @@ func cleanURL(rawURL string) string {
 }
 
 func truncate(s string, max int) string {
-	if len(s) <= max {
+	if max <= 0 {
+		return ""
+	}
+	r := []rune(s)
+	if len(r) <= max {
 		return s
 	}
-	return s[:max-3] + "..."
+	if max <= 3 {
+		return string(r[:max])
+	}
+	return string(r[:max-3]) + "..."
 }
