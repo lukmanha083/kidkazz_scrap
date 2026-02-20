@@ -171,15 +171,16 @@ type graphqlResponse []struct {
 }
 
 type graphqlProduct struct {
-	ID                 json.Number `json:"id"`
-	Name               string      `json:"name"`
-	Price              string      `json:"price"`
-	OriginalPrice      string      `json:"originalPrice"`
-	DiscountPercentage int         `json:"discountPercentage"`
-	ImageURL           string      `json:"imageUrl"`
-	URL                string      `json:"url"`
-	CountReview        json.Number `json:"countReview"`
-	Shop               struct {
+	ID                  json.Number `json:"id"`
+	Name                string      `json:"name"`
+	Price               string      `json:"price"`
+	OriginalPrice       string      `json:"originalPrice"`
+	DiscountPercentage  int         `json:"discountPercentage"`
+	CategoryBreadcrumb  string      `json:"categoryBreadcrumb"`
+	ImageURL            string      `json:"imageUrl"`
+	URL                 string      `json:"url"`
+	CountReview         json.Number `json:"countReview"`
+	Shop                struct {
 		ID         json.Number `json:"id"`
 		Name       string      `json:"name"`
 		URL        string      `json:"url"`
@@ -210,6 +211,7 @@ func parseSearchResponse(data []byte) ([]models.Product, error) {
 			Name:            gp.Name,
 			Price:           parsePrice(gp.Price),
 			DiscountPercent: gp.DiscountPercentage,
+			Category:        gp.CategoryBreadcrumb,
 			ImageURL:        gp.ImageURL,
 			URL:             gp.URL,
 			Platform:        "tokopedia",

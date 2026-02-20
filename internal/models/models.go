@@ -10,6 +10,7 @@ type Product struct {
 	DiscountPercent int     `json:"discount_percent,omitempty"`
 	ImageURL        string  `json:"image_url,omitempty"`
 	URL             string  `json:"url"`
+	Category        string  `json:"category,omitempty"`
 	Shop            Shop    `json:"shop"`
 	ReviewCount     int     `json:"review_count,omitempty"`
 	Platform        string  `json:"platform"`
