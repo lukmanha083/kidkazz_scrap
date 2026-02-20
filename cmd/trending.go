@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/lukman83/kidkazz-scrap/internal/platform"
+	"github.com/lukman83/kidkazz-scrap/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -37,11 +38,14 @@ func runTrending(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx := context.Background()
+	spin := ui.NewSpinner()
+	spin.Start("Fetching trending products...")
+	ctx := platform.WithProgress(context.Background(), spin.Update)
 	products, err := scraper.Trending(ctx, platform.TrendingOpts{
 		Category: category,
 		Limit:    limit,
 	})
+	spin.Stop()
 	if err != nil {
 		return fmt.Errorf("trending failed: %w", err)
 	}

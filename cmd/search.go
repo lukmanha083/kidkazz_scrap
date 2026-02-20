@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/lukman83/kidkazz-scrap/internal/platform"
+	"github.com/lukman83/kidkazz-scrap/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -39,11 +40,14 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx := context.Background()
+	spin := ui.NewSpinner()
+	spin.Start(fmt.Sprintf("Searching '%s' on %s...", keyword, platformName))
+	ctx := platform.WithProgress(context.Background(), spin.Update)
 	products, err := scraper.Search(ctx, keyword, platform.SearchOpts{
 		Page:  page,
 		Limit: limit,
 	})
+	spin.Stop()
 	if err != nil {
 		return fmt.Errorf("search failed: %w", err)
 	}

@@ -3,7 +3,6 @@ package tokopedia
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -146,25 +145,25 @@ func (t *Scraper) executeWithFallback(ctx context.Context, req platform.Request)
 	select {
 	case r := <-resultCh:
 		cancel()
-		log.Printf("strategy %s succeeded with %d products", r.strategy, len(r.products))
+		platform.ReportProgress(ctx, fmt.Sprintf("Found %d products via %s", len(r.products), r.strategy))
 		return r.products, nil
 	case <-time.After(10 * time.Second):
 		cancel()
-		log.Printf("fast strategies timed out, falling back to slow strategies")
+		platform.ReportProgress(ctx, "Fast strategies timed out, trying headless browser...")
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
 
 	// Phase 2: Fall back to slow strategies sequentially
 	for _, s := range t.slowStrategies {
-		log.Printf("trying slow strategy: %s", s.Name())
+		platform.ReportProgress(ctx, fmt.Sprintf("Trying %s strategy...", s.Name()))
 		result, err := s.Execute(ctx, req)
 		if err == nil && result != nil && len(result.Products) > 0 {
-			log.Printf("strategy %s succeeded with %d products", s.Name(), len(result.Products))
+			platform.ReportProgress(ctx, fmt.Sprintf("Found %d products via %s", len(result.Products), s.Name()))
 			return result.Products, nil
 		}
 		if err != nil {
-			log.Printf("strategy %s failed: %v", s.Name(), err)
+			platform.ReportProgress(ctx, fmt.Sprintf("Strategy %s failed, trying next...", s.Name()))
 		}
 	}
 
