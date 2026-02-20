@@ -39,15 +39,18 @@ func (p *ProxyRotator) Next() ProxyProvider {
 }
 
 // DirectProvider routes traffic directly (no proxy).
-type DirectProvider struct{}
+type DirectProvider struct {
+	transport http.RoundTripper
+}
 
-func (d *DirectProvider) Transport() http.RoundTripper {
-	return &http.Transport{
-		DisableKeepAlives: false,
+func NewDirectProvider() *DirectProvider {
+	return &DirectProvider{
+		transport: &http.Transport{},
 	}
 }
 
-func (d *DirectProvider) Name() string { return "direct" }
+func (d *DirectProvider) Transport() http.RoundTripper { return d.transport }
+func (d *DirectProvider) Name() string                 { return "direct" }
 
 // DecodoProvider implements Decodo residential proxy routing.
 type DecodoProvider struct {
@@ -56,6 +59,8 @@ type DecodoProvider struct {
 	Country      string // e.g. "id" for Indonesia
 	City         string // e.g. "jakarta" (optional)
 	UseUnblocker bool
+	transport    http.RoundTripper
+	once         sync.Once
 }
 
 func (d *DecodoProvider) Name() string {
@@ -66,14 +71,17 @@ func (d *DecodoProvider) Name() string {
 }
 
 func (d *DecodoProvider) Transport() http.RoundTripper {
-	proxyURL, _ := url.Parse(d.RotatingURL())
-	return &http.Transport{
-		Proxy:             http.ProxyURL(proxyURL),
-		DisableKeepAlives: true, // new IP per request
-	}
+	d.once.Do(func() {
+		proxyURL := d.buildProxyURL()
+		d.transport = &http.Transport{
+			Proxy:             http.ProxyURL(proxyURL),
+			DisableKeepAlives: true, // new IP per request
+		}
+	})
+	return d.transport
 }
 
-func (d *DecodoProvider) RotatingURL() string {
+func (d *DecodoProvider) buildProxyURL() *url.URL {
 	user := fmt.Sprintf("user-%s-country-%s", d.Username, d.Country)
 	if d.City != "" {
 		user += fmt.Sprintf("-city-%s", d.City)
@@ -83,27 +91,46 @@ func (d *DecodoProvider) RotatingURL() string {
 		host = "unblock.decodo.com:60000"
 		user = d.Username
 	}
-	return fmt.Sprintf("http://%s:%s@%s", user, d.Password, host)
+	return &url.URL{
+		Scheme: "http",
+		User:   url.UserPassword(user, d.Password),
+		Host:   host,
+	}
 }
 
-func (d *DecodoProvider) StickyURL(sessionID string, durationMin int) string {
+func (d *DecodoProvider) StickyURL(sessionID string, durationMin int) *url.URL {
 	user := fmt.Sprintf("user-%s-country-%s-session-%s-sessionduration-%d",
 		d.Username, d.Country, sessionID, durationMin)
-	return fmt.Sprintf("http://%s:%s@gate.decodo.com:7000", user, d.Password)
+	return &url.URL{
+		Scheme: "http",
+		User:   url.UserPassword(user, d.Password),
+		Host:   "gate.decodo.com:7000",
+	}
 }
 
 // HTTPProxyProvider wraps a generic HTTP/SOCKS5 proxy URL.
 type HTTPProxyProvider struct {
-	ProxyURL string
-	Label    string
+	RawURL    string
+	Label     string
+	transport http.RoundTripper
+	once      sync.Once
+	parseErr  error
 }
 
 func (h *HTTPProxyProvider) Name() string { return h.Label }
 
 func (h *HTTPProxyProvider) Transport() http.RoundTripper {
-	proxyURL, _ := url.Parse(h.ProxyURL)
-	return &http.Transport{
-		Proxy:             http.ProxyURL(proxyURL),
-		DisableKeepAlives: true,
-	}
+	h.once.Do(func() {
+		proxyURL, err := url.Parse(h.RawURL)
+		if err != nil {
+			h.parseErr = err
+			h.transport = http.DefaultTransport
+			return
+		}
+		h.transport = &http.Transport{
+			Proxy:             http.ProxyURL(proxyURL),
+			DisableKeepAlives: true,
+		}
+	})
+	return h.transport
 }
