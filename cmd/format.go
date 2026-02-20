@@ -23,8 +23,8 @@ func printProductsTable(products []models.Product) {
 
 		// Price line with optional original price and discount
 		priceLine := "    Price: " + formatPrice(p.Price)
-		if p.OriginalPrice > 0 && p.OriginalPrice != p.Price {
-			priceLine += fmt.Sprintf("  ~~%s~~ -%d%%", formatPrice(p.OriginalPrice), p.DiscountPercent)
+		if p.OriginalPrice > p.Price && p.DiscountPercent > 0 {
+			priceLine += fmt.Sprintf("  (was %s, -%d%%)", formatPrice(p.OriginalPrice), p.DiscountPercent)
 		}
 		priceLine += "  |  Shop: " + p.Shop.Name
 		if p.Shop.City != "" {
@@ -79,8 +79,12 @@ func cleanURL(rawURL string) string {
 }
 
 func truncate(s string, max int) string {
-	if len(s) <= max {
+	r := []rune(s)
+	if len(r) <= max {
 		return s
 	}
-	return s[:max-3] + "..."
+	if max <= 3 {
+		return string(r[:max])
+	}
+	return string(r[:max-3]) + "..."
 }

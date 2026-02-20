@@ -44,58 +44,7 @@ func (g *GraphQLStrategy) search(ctx context.Context, req platform.Request) (*pl
 	if page <= 0 {
 		page = 1
 	}
-
-	params := BuildSearchParams(req.Keyword, page, limit, SortBestMatch)
-
-	payload := []map[string]interface{}{
-		{
-			"operationName": "SearchProductQueryV4",
-			"query":         searchProductQuery,
-			"variables": map[string]interface{}{
-				"params": params,
-			},
-		},
-	}
-
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", graphQLEndpoint, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range httputil.TokopediaGraphQLHeaders() {
-		httpReq.Header[k] = v
-	}
-
-	resp, err := httputil.DoWithRetry(g.client, httpReq, 2)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	respBody, err := httputil.ReadBody(resp)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("graphql response status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	products, totalData, err := parseSearchResponse(respBody)
-	if err != nil {
-		return nil, err
-	}
-
-	return &platform.Result{
-		Products:  products,
-		TotalData: totalData,
-		Strategy:  g.Name(),
-		Raw:       json.RawMessage(respBody),
-	}, nil
+	return g.executeSearch(ctx, req.Keyword, page, limit, SortBestMatch)
 }
 
 func (g *GraphQLStrategy) trending(ctx context.Context, req platform.Request) (*platform.Result, error) {
@@ -103,8 +52,11 @@ func (g *GraphQLStrategy) trending(ctx context.Context, req platform.Request) (*
 	if limit <= 0 {
 		limit = 20
 	}
+	return g.executeSearch(ctx, req.Keyword, 1, limit, SortBestSeller)
+}
 
-	params := BuildSearchParams(req.Keyword, 1, limit, SortBestSeller)
+func (g *GraphQLStrategy) executeSearch(ctx context.Context, keyword string, page, limit, sort int) (*platform.Result, error) {
+	params := BuildSearchParams(keyword, page, limit, sort)
 
 	payload := []map[string]interface{}{
 		{
@@ -215,7 +167,7 @@ func parseSearchResponse(data []byte) ([]models.Product, int, error) {
 	totalData := ace.Header.TotalData
 	gqlProducts := ace.Data.Products
 	if len(gqlProducts) == 0 {
-		return nil, 0, fmt.Errorf("no products in graphql response")
+		return []models.Product{}, totalData, nil
 	}
 
 	products := make([]models.Product, 0, len(gqlProducts))

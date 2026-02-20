@@ -20,9 +20,9 @@ type Product struct {
 	Category        string    `json:"category,omitempty"`
 	Shop            Shop      `json:"shop"`
 	ReviewCount     int       `json:"review_count,omitempty"`
-	IsAd            bool      `json:"is_ad,omitempty"`
+	IsAd            bool      `json:"is_ad"`
 	Labels          []Label   `json:"labels,omitempty"`
-	Wishlist        bool      `json:"wishlist,omitempty"`
+	Wishlist        bool      `json:"wishlist"`
 	Platform        string    `json:"platform"`
 	ScrapedAt       time.Time `json:"scraped_at"`
 	Strategy        string    `json:"strategy"`
