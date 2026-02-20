@@ -27,9 +27,16 @@ func NewHTTPClient(transport http.RoundTripper) *http.Client {
 }
 
 // DoWithRetry performs an HTTP request with retry logic.
+// On retry, the request body is reset via req.GetBody if available.
 func DoWithRetry(client *http.Client, req *http.Request, maxRetries int) (*http.Response, error) {
 	var lastErr error
 	for i := 0; i <= maxRetries; i++ {
+		if i > 0 && req.GetBody != nil {
+			body, err := req.GetBody()
+			if err == nil {
+				req.Body = body
+			}
+		}
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
