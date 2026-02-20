@@ -25,7 +25,6 @@ type Config struct {
 	DecodoPassword   string
 	DecodoCountry   string
 	DecodoCity      string
-	DecodoUnblocker bool
 	WireGuardConfig string
 	ProxyFile       string // file with proxy list for custom mode
 }

@@ -19,35 +19,38 @@ type StealthTransport struct {
 }
 
 func (t *StealthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Clone request to avoid mutating the caller's request (http.RoundTripper contract)
+	clone := req.Clone(req.Context())
+
 	// 1. Apply fingerprint (UA + headers)
 	fp := t.Fingerprint.Next()
-	req.Header.Set("User-Agent", fp.UserAgent)
+	clone.Header.Set("User-Agent", fp.UserAgent)
 	for key, vals := range fp.Headers {
-		if req.Header.Get(key) == "" {
+		if clone.Header.Get(key) == "" {
 			for _, v := range vals {
-				req.Header.Add(key, v)
+				clone.Header.Add(key, v)
 			}
 		}
 	}
 
 	// 2. Check robots.txt
 	if t.Robots != nil {
-		allowed, err := t.Robots.IsAllowed(fp.UserAgent, req.URL.String())
+		allowed, err := t.Robots.IsAllowed(fp.UserAgent, clone.URL.String())
 		if err == nil && !allowed {
-			return nil, fmt.Errorf("blocked by robots.txt: %s", req.URL.Path)
+			return nil, fmt.Errorf("blocked by robots.txt: %s", clone.URL.Path)
 		}
 	}
 
 	// 3. Wait for rate limiter token
 	if t.RateLimiter != nil {
-		if err := t.RateLimiter.Wait(req.Context()); err != nil {
+		if err := t.RateLimiter.Wait(clone.Context()); err != nil {
 			return nil, fmt.Errorf("rate limiter: %w", err)
 		}
 	}
 
 	// 4. Apply human-like delay
 	if t.Delay != nil {
-		if err := t.Delay.Wait(req.Context()); err != nil {
+		if err := t.Delay.Wait(clone.Context()); err != nil {
 			return nil, fmt.Errorf("delay: %w", err)
 		}
 	}
@@ -61,5 +64,5 @@ func (t *StealthTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		transport = http.DefaultTransport
 	}
 
-	return transport.RoundTrip(req)
+	return transport.RoundTrip(clone)
 }

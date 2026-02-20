@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
 	mcpserver "github.com/lukman83/kidkazz-scrap/mcp"
 	"github.com/spf13/cobra"
@@ -23,8 +22,5 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(cmd.ErrOrStderr(), "Starting KidKazz MCP server on stdio...")
 
-	if err := mcpserver.Serve(); err != nil {
-		log.Fatalf("MCP server error: %v", err)
-	}
-	return nil
+	return mcpserver.Serve()
 }

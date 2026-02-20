@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -43,18 +44,18 @@ func initConfig() {
 	cfg = config.DefaultConfig()
 	cfg.LoadFromEnv()
 
-	// Override from flags
-	if v, _ := rootCmd.PersistentFlags().GetString("platform"); v != "" {
-		cfg.DefaultPlatform = v
+	// Override from flags only if explicitly set by user
+	if rootCmd.PersistentFlags().Changed("platform") {
+		cfg.DefaultPlatform, _ = rootCmd.PersistentFlags().GetString("platform")
 	}
-	if v, _ := rootCmd.PersistentFlags().GetString("delay-profile"); v != "" {
-		cfg.DelayProfile = v
+	if rootCmd.PersistentFlags().Changed("delay-profile") {
+		cfg.DelayProfile, _ = rootCmd.PersistentFlags().GetString("delay-profile")
 	}
-	if v, _ := rootCmd.PersistentFlags().GetBool("respect-robots"); !v {
-		cfg.RespectRobots = false
+	if rootCmd.PersistentFlags().Changed("respect-robots") {
+		cfg.RespectRobots, _ = rootCmd.PersistentFlags().GetBool("respect-robots")
 	}
-	if v, _ := rootCmd.PersistentFlags().GetString("proxy-mode"); v != "" {
-		cfg.ProxyMode = v
+	if rootCmd.PersistentFlags().Changed("proxy-mode") {
+		cfg.ProxyMode, _ = rootCmd.PersistentFlags().GetString("proxy-mode")
 	}
 	if v, _ := rootCmd.PersistentFlags().GetString("wireguard-config"); v != "" {
 		cfg.WireGuardConfig = v
@@ -77,6 +78,8 @@ func buildHTTPClient() *http.Client {
 
 	var proxyRotator *stealth.ProxyRotator
 	switch cfg.ProxyMode {
+	case "direct":
+		// No proxy
 	case "decodo":
 		if cfg.DecodoUsername != "" && cfg.DecodoPassword != "" {
 			proxyRotator = stealth.NewProxyRotator([]stealth.ProxyProvider{
@@ -87,7 +90,13 @@ func buildHTTPClient() *http.Client {
 					City:     cfg.DecodoCity,
 				},
 			})
+		} else {
+			log.Println("warning: proxy-mode=decodo but DECODO_USERNAME/DECODO_PASSWORD not set, falling back to direct")
 		}
+	case "wireguard", "custom":
+		log.Printf("warning: proxy-mode=%s is not yet implemented, falling back to direct", cfg.ProxyMode)
+	default:
+		log.Printf("warning: unknown proxy-mode %q, falling back to direct", cfg.ProxyMode)
 	}
 
 	robotsClient := &http.Client{}

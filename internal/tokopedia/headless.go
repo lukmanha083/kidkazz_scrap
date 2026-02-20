@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -37,7 +38,7 @@ func (h *HeadlessBrowserStrategy) Execute(ctx context.Context, req platform.Requ
 }
 
 func (h *HeadlessBrowserStrategy) search(ctx context.Context, req platform.Request) (*platform.Result, error) {
-	searchURL := fmt.Sprintf("https://www.tokopedia.com/search?q=%s&page=%d", req.Keyword, req.Page)
+	searchURL := fmt.Sprintf("https://www.tokopedia.com/search?q=%s&page=%d", url.QueryEscape(req.Keyword), req.Page)
 
 	page, cleanup, err := h.openPage(ctx, searchURL)
 	if err != nil {
@@ -45,10 +46,10 @@ func (h *HeadlessBrowserStrategy) search(ctx context.Context, req platform.Reque
 	}
 	defer cleanup()
 
-	// Wait for product cards to appear
-	err = page.Timeout(15 * time.Second).MustWaitStable().WaitDOMStable(2*time.Second, 0.1)
-	if err != nil {
-		// Try to extract whatever we have
+	// Wait for page to stabilize
+	timedPage := page.Timeout(15 * time.Second)
+	if err := timedPage.WaitStable(time.Second); err == nil {
+		_ = timedPage.WaitDOMStable(2*time.Second, 0.1)
 	}
 
 	htmlContent, err := page.HTML()
@@ -87,9 +88,9 @@ func (h *HeadlessBrowserStrategy) productDetail(ctx context.Context, req platfor
 	}
 	defer cleanup()
 
-	err = page.Timeout(15 * time.Second).MustWaitStable().WaitDOMStable(2*time.Second, 0.1)
-	if err != nil {
-		// Continue with what we have
+	timedPage := page.Timeout(15 * time.Second)
+	if err := timedPage.WaitStable(time.Second); err == nil {
+		_ = timedPage.WaitDOMStable(2*time.Second, 0.1)
 	}
 
 	htmlContent, err := page.HTML()
@@ -112,7 +113,7 @@ func (h *HeadlessBrowserStrategy) productDetail(ctx context.Context, req platfor
 	}, nil
 }
 
-func (h *HeadlessBrowserStrategy) openPage(ctx context.Context, url string) (*rod.Page, func(), error) {
+func (h *HeadlessBrowserStrategy) openPage(ctx context.Context, pageURL string) (*rod.Page, func(), error) {
 	var l *launcher.Launcher
 	if h.launcherURL != "" {
 		l = launcher.MustNewManaged(h.launcherURL)
@@ -126,11 +127,12 @@ func (h *HeadlessBrowserStrategy) openPage(ctx context.Context, url string) (*ro
 
 	browser := rod.New().ControlURL(controlURL)
 	if err := browser.Connect(); err != nil {
+		l.Kill()
 		return nil, nil, fmt.Errorf("connect browser: %w", err)
 	}
 
 	// Set viewport to desktop size
-	page, err := browser.Page(proto.TargetCreateTarget{URL: url})
+	page, err := browser.Page(proto.TargetCreateTarget{URL: pageURL})
 	if err != nil {
 		browser.Close()
 		return nil, nil, fmt.Errorf("open page: %w", err)
@@ -148,6 +150,7 @@ func (h *HeadlessBrowserStrategy) openPage(ctx context.Context, url string) (*ro
 	cleanup := func() {
 		page.Close()
 		browser.Close()
+		l.Cleanup()
 	}
 
 	return page, cleanup, nil

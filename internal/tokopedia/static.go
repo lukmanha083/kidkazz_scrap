@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -37,7 +38,7 @@ func (s *StaticPageStrategy) Execute(ctx context.Context, req platform.Request) 
 }
 
 func (s *StaticPageStrategy) search(ctx context.Context, req platform.Request) (*platform.Result, error) {
-	searchURL := fmt.Sprintf("https://www.tokopedia.com/search?q=%s&page=%d", req.Keyword, req.Page)
+	searchURL := fmt.Sprintf("https://www.tokopedia.com/search?q=%s&page=%d", url.QueryEscape(req.Keyword), req.Page)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
 	if err != nil {
@@ -60,7 +61,7 @@ func (s *StaticPageStrategy) search(ctx context.Context, req platform.Request) (
 
 	products, err := extractJSONLD(string(body))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("extract JSON-LD: %w", err)
 	}
 	if len(products) == 0 {
 		return nil, fmt.Errorf("no JSON-LD product data found")
@@ -93,7 +94,10 @@ func (s *StaticPageStrategy) productDetail(ctx context.Context, req platform.Req
 	}
 
 	products, err := extractJSONLD(string(body))
-	if err != nil || len(products) == 0 {
+	if err != nil {
+		return nil, fmt.Errorf("extract JSON-LD: %w", err)
+	}
+	if len(products) == 0 {
 		return nil, fmt.Errorf("no JSON-LD product data found in page")
 	}
 
