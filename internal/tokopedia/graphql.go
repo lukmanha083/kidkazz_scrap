@@ -45,7 +45,7 @@ func (g *GraphQLStrategy) search(ctx context.Context, req platform.Request) (*pl
 		page = 1
 	}
 
-	params := BuildSearchParams(req.Keyword, page, limit)
+	params := BuildSearchParams(req.Keyword, page, limit, SortBestMatch)
 
 	payload := []map[string]interface{}{
 		{
@@ -98,17 +98,61 @@ func (g *GraphQLStrategy) search(ctx context.Context, req platform.Request) (*pl
 }
 
 func (g *GraphQLStrategy) trending(ctx context.Context, req platform.Request) (*platform.Result, error) {
-	// Trending uses the same search endpoint with a popularity sort
 	limit := req.Limit
 	if limit <= 0 {
 		limit = 20
 	}
-	return g.search(ctx, platform.Request{
-		Type:    platform.SearchRequest,
-		Keyword: req.Keyword,
-		Page:    1,
-		Limit:   limit,
-	})
+
+	params := BuildSearchParams(req.Keyword, 1, limit, SortBestSeller)
+
+	payload := []map[string]interface{}{
+		{
+			"operationName": "SearchProductQueryV4",
+			"query":         searchProductQuery,
+			"variables": map[string]interface{}{
+				"params": params,
+			},
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", graphQLEndpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range httputil.TokopediaGraphQLHeaders() {
+		httpReq.Header[k] = v
+	}
+
+	resp, err := httputil.DoWithRetry(g.client, httpReq, 2)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := httputil.ReadBody(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("graphql response status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	products, err := parseSearchResponse(respBody)
+	if err != nil {
+		return nil, err
+	}
+
+	return &platform.Result{
+		Products: products,
+		Strategy: g.Name(),
+		Raw:      json.RawMessage(respBody),
+	}, nil
 }
 
 // graphqlResponse represents the GraphQL response structure.
@@ -116,8 +160,8 @@ type graphqlResponse []struct {
 	Data struct {
 		AceSearchProductV4 struct {
 			Header struct {
-				TotalData    int    `json:"totalData"`
-				ResponseCode string `json:"responseCode"`
+				TotalData    int             `json:"totalData"`
+				ResponseCode json.Number     `json:"responseCode"`
 			} `json:"header"`
 			Data struct {
 				Products []graphqlProduct `json:"products"`
@@ -127,24 +171,22 @@ type graphqlResponse []struct {
 }
 
 type graphqlProduct struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Price struct {
-		Text   string `json:"text"`
-		Number int64  `json:"number"`
-	} `json:"price"`
-	OriginalPrice      string  `json:"originalPrice"`
-	DiscountPercentage int     `json:"discountPercentage"`
-	ImageURL           map[string]string `json:"imageUrl"`
-	URL                string  `json:"url"`
+	ID                 json.Number `json:"id"`
+	Name               string      `json:"name"`
+	Price              string      `json:"price"`
+	OriginalPrice      string      `json:"originalPrice"`
+	DiscountPercentage int         `json:"discountPercentage"`
+	ImageURL           string      `json:"imageUrl"`
+	URL                string      `json:"url"`
+	Rating             float64     `json:"rating"`
+	CountReview        json.Number `json:"countReview"`
 	Shop               struct {
-		ID         string `json:"id"`
-		Name       string `json:"name"`
-		City       string `json:"city"`
-		IsOfficial bool   `json:"isOfficial"`
+		ID         json.Number `json:"id"`
+		Name       string      `json:"name"`
+		URL        string      `json:"url"`
+		City       string      `json:"city"`
+		IsOfficial bool        `json:"isOfficial"`
 	} `json:"shop"`
-	RatingAverage string `json:"ratingAverage"`
-	CountReview   string `json:"countReview"`
 }
 
 func parseSearchResponse(data []byte) ([]models.Product, error) {
@@ -165,43 +207,45 @@ func parseSearchResponse(data []byte) ([]models.Product, error) {
 	products := make([]models.Product, 0, len(gqlProducts))
 	for _, gp := range gqlProducts {
 		p := models.Product{
-			ID:              gp.ID,
+			ID:              gp.ID.String(),
 			Name:            gp.Name,
-			Price:           gp.Price.Number,
+			Price:           parsePrice(gp.Price),
 			DiscountPercent: gp.DiscountPercentage,
+			ImageURL:        gp.ImageURL,
 			URL:             gp.URL,
+			Rating:          gp.Rating,
 			Platform:        "tokopedia",
 			ScrapedAt:       time.Now(),
 			Strategy:        "graphql",
 			Shop: models.Shop{
-				ID:         gp.Shop.ID,
+				ID:         gp.Shop.ID.String(),
 				Name:       gp.Shop.Name,
 				City:       gp.Shop.City,
 				IsOfficial: gp.Shop.IsOfficial,
 			},
 		}
 
-		// Image URL from the map
-		if imgURL, ok := gp.ImageURL["300"]; ok {
-			p.ImageURL = imgURL
-		}
-
-		// Parse rating
-		if gp.RatingAverage != "" {
-			var rating float64
-			fmt.Sscanf(gp.RatingAverage, "%f", &rating)
-			p.Rating = rating
-		}
-
-		// Parse review count
-		if gp.CountReview != "" {
-			var count int
-			fmt.Sscanf(gp.CountReview, "%d", &count)
-			p.ReviewCount = count
+		if rc, err := gp.CountReview.Int64(); err == nil {
+			p.ReviewCount = int(rc)
 		}
 
 		products = append(products, p)
 	}
 
 	return products, nil
+}
+
+// parsePrice extracts a numeric price from strings like "Rp100.000" or "Rp 1.234.567".
+func parsePrice(s string) int64 {
+	var digits []byte
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			digits = append(digits, byte(c))
+		}
+	}
+	var n int64
+	for _, d := range digits {
+		n = n*10 + int64(d-'0')
+	}
+	return n
 }

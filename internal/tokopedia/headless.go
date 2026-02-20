@@ -226,21 +226,19 @@ func tryExtractProductsFromScript(content string) ([]models.Product, error) {
 			continue
 		}
 		p := models.Product{
-			ID:       gp.ID,
+			ID:       gp.ID.String(),
 			Name:     gp.Name,
-			Price:    gp.Price.Number,
+			Price:    parsePrice(gp.Price),
+			ImageURL: gp.ImageURL,
 			URL:      gp.URL,
 			Platform: "tokopedia",
 			ScrapedAt: time.Now(),
 			Strategy: "headless",
 			Shop: models.Shop{
-				ID:   gp.Shop.ID,
+				ID:   gp.Shop.ID.String(),
 				Name: gp.Shop.Name,
 				City: gp.Shop.City,
 			},
-		}
-		if imgURL, ok := gp.ImageURL["300"]; ok {
-			p.ImageURL = imgURL
 		}
 		products = append(products, p)
 	}
