@@ -43,12 +43,6 @@ type DirectProvider struct {
 	transport http.RoundTripper
 }
 
-func NewDirectProvider() *DirectProvider {
-	return &DirectProvider{
-		transport: &http.Transport{},
-	}
-}
-
 func (d *DirectProvider) Transport() http.RoundTripper { return d.transport }
 func (d *DirectProvider) Name() string                 { return "direct" }
 
@@ -133,4 +127,11 @@ func (h *HTTPProxyProvider) Transport() http.RoundTripper {
 		}
 	})
 	return h.transport
+}
+
+// Err returns any error from parsing the proxy URL.
+// Must be called after Transport() to ensure initialization.
+func (h *HTTPProxyProvider) Err() error {
+	h.once.Do(func() {}) // ensure init ran
+	return h.parseErr
 }

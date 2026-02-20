@@ -33,9 +33,10 @@ func DoWithRetry(client *http.Client, req *http.Request, maxRetries int) (*http.
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 && req.GetBody != nil {
 			body, err := req.GetBody()
-			if err == nil {
-				req.Body = body
+			if err != nil {
+				return nil, fmt.Errorf("reset request body for retry: %w", err)
 			}
+			req.Body = body
 		}
 		resp, err := client.Do(req)
 		if err != nil {

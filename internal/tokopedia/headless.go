@@ -150,6 +150,7 @@ func (h *HeadlessBrowserStrategy) openPage(ctx context.Context, pageURL string) 
 	cleanup := func() {
 		page.Close()
 		browser.Close()
+		l.Cleanup()
 	}
 
 	return page, cleanup, nil

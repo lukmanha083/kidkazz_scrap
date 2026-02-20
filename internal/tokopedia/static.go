@@ -61,7 +61,7 @@ func (s *StaticPageStrategy) search(ctx context.Context, req platform.Request) (
 
 	products, err := extractJSONLD(string(body))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("extract JSON-LD: %w", err)
 	}
 	if len(products) == 0 {
 		return nil, fmt.Errorf("no JSON-LD product data found")
