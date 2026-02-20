@@ -178,7 +178,6 @@ type graphqlProduct struct {
 	DiscountPercentage int         `json:"discountPercentage"`
 	ImageURL           string      `json:"imageUrl"`
 	URL                string      `json:"url"`
-	Rating             float64     `json:"rating"`
 	CountReview        json.Number `json:"countReview"`
 	Shop               struct {
 		ID         json.Number `json:"id"`
@@ -213,7 +212,6 @@ func parseSearchResponse(data []byte) ([]models.Product, error) {
 			DiscountPercent: gp.DiscountPercentage,
 			ImageURL:        gp.ImageURL,
 			URL:             gp.URL,
-			Rating:          gp.Rating,
 			Platform:        "tokopedia",
 			ScrapedAt:       time.Now(),
 			Strategy:        "graphql",

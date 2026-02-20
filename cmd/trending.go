@@ -53,10 +53,10 @@ func runTrending(cmd *cobra.Command, args []string) error {
 	switch format {
 	case "table":
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tPRICE\tSHOP\tRATING\tURL")
+		fmt.Fprintln(w, "NAME\tPRICE\tSHOP\tURL")
 		for _, p := range products {
-			fmt.Fprintf(w, "%s\tRp%d\t%s\t%.1f\t%s\n",
-				truncate(p.Name, 50), p.Price, p.Shop.Name, p.Rating, p.URL)
+			fmt.Fprintf(w, "%s\tRp%d\t%s\t%s\n",
+				truncate(p.Name, 50), p.Price, p.Shop.Name, p.URL)
 		}
 		w.Flush()
 	default:

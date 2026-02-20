@@ -11,7 +11,6 @@ type Product struct {
 	ImageURL        string  `json:"image_url,omitempty"`
 	URL             string  `json:"url"`
 	Shop            Shop    `json:"shop"`
-	Rating          float64 `json:"rating,omitempty"`
 	ReviewCount     int     `json:"review_count,omitempty"`
 	Platform        string  `json:"platform"`
 	ScrapedAt       time.Time `json:"scraped_at"`

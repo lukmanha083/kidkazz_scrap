@@ -232,9 +232,6 @@ func jsonLDToProduct(item *jsonLDItem) (models.Product, bool) {
 	}
 
 	if item.AggregateRating != nil {
-		if r, err := item.AggregateRating.RatingValue.Float64(); err == nil {
-			p.Rating = r
-		}
 		if rc, err := item.AggregateRating.ReviewCount.Int64(); err == nil {
 			p.ReviewCount = int(rc)
 		}
