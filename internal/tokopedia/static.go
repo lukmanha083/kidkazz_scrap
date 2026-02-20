@@ -28,7 +28,7 @@ func (s *StaticPageStrategy) Name() string { return "static" }
 
 func (s *StaticPageStrategy) Execute(ctx context.Context, req platform.Request) (*platform.Result, error) {
 	switch req.Type {
-	case platform.SearchRequest:
+	case platform.SearchRequest, platform.TrendingRequest:
 		return s.search(ctx, req)
 	case platform.ProductDetailRequest:
 		return s.productDetail(ctx, req)

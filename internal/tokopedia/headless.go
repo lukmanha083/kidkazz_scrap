@@ -28,7 +28,7 @@ func (h *HeadlessBrowserStrategy) Name() string { return "headless" }
 
 func (h *HeadlessBrowserStrategy) Execute(ctx context.Context, req platform.Request) (*platform.Result, error) {
 	switch req.Type {
-	case platform.SearchRequest:
+	case platform.SearchRequest, platform.TrendingRequest:
 		return h.search(ctx, req)
 	case platform.ProductDetailRequest:
 		return h.productDetail(ctx, req)
