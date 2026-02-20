@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 
 	"github.com/lukman83/kidkazz-scrap/internal/platform"
 	"github.com/lukman83/kidkazz-scrap/internal/ui"
@@ -54,13 +53,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	switch format {
 	case "table":
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tPRICE\tSHOP\tURL")
-		for _, p := range products {
-			fmt.Fprintf(w, "%s\tRp%d\t%s\t%s\n",
-				truncate(p.Name, 50), p.Price, p.Shop.Name, p.URL)
-		}
-		w.Flush()
+		printProductsTable(products)
 	default:
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -68,11 +61,4 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	return s[:max-3] + "..."
 }
