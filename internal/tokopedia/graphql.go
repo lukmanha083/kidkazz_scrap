@@ -85,15 +85,16 @@ func (g *GraphQLStrategy) search(ctx context.Context, req platform.Request) (*pl
 		return nil, fmt.Errorf("graphql response status %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	products, err := parseSearchResponse(respBody)
+	products, totalData, err := parseSearchResponse(respBody)
 	if err != nil {
 		return nil, err
 	}
 
 	return &platform.Result{
-		Products: products,
-		Strategy: g.Name(),
-		Raw:      json.RawMessage(respBody),
+		Products:  products,
+		TotalData: totalData,
+		Strategy:  g.Name(),
+		Raw:       json.RawMessage(respBody),
 	}, nil
 }
 
@@ -143,15 +144,16 @@ func (g *GraphQLStrategy) trending(ctx context.Context, req platform.Request) (*
 		return nil, fmt.Errorf("graphql response status %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	products, err := parseSearchResponse(respBody)
+	products, totalData, err := parseSearchResponse(respBody)
 	if err != nil {
 		return nil, err
 	}
 
 	return &platform.Result{
-		Products: products,
-		Strategy: g.Name(),
-		Raw:      json.RawMessage(respBody),
+		Products:  products,
+		TotalData: totalData,
+		Strategy:  g.Name(),
+		Raw:       json.RawMessage(respBody),
 	}, nil
 }
 
@@ -175,12 +177,22 @@ type graphqlProduct struct {
 	Name                string      `json:"name"`
 	Price               string      `json:"price"`
 	OriginalPrice       string      `json:"originalPrice"`
+	PriceRange          string      `json:"priceRange"`
 	DiscountPercentage  int         `json:"discountPercentage"`
 	CategoryBreadcrumb  string      `json:"categoryBreadcrumb"`
 	ImageURL            string      `json:"imageUrl"`
 	URL                 string      `json:"url"`
 	CountReview         json.Number `json:"countReview"`
-	Shop                struct {
+	Wishlist            bool        `json:"wishlist"`
+	Ads struct {
+		ID string `json:"id"`
+	} `json:"ads"`
+	LabelGroups []struct {
+		Position string `json:"position"`
+		Title    string `json:"title"`
+		Type     string `json:"type"`
+	} `json:"labelGroups"`
+	Shop struct {
 		ID         json.Number `json:"id"`
 		Name       string      `json:"name"`
 		URL        string      `json:"url"`
@@ -189,31 +201,52 @@ type graphqlProduct struct {
 	} `json:"shop"`
 }
 
-func parseSearchResponse(data []byte) ([]models.Product, error) {
+func parseSearchResponse(data []byte) ([]models.Product, int, error) {
 	var resp graphqlResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, fmt.Errorf("unmarshal graphql response: %w", err)
+		return nil, 0, fmt.Errorf("unmarshal graphql response: %w", err)
 	}
 
 	if len(resp) == 0 {
-		return nil, fmt.Errorf("empty graphql response")
+		return nil, 0, fmt.Errorf("empty graphql response")
 	}
 
-	gqlProducts := resp[0].Data.AceSearchProductV4.Data.Products
+	ace := resp[0].Data.AceSearchProductV4
+	totalData := ace.Header.TotalData
+	gqlProducts := ace.Data.Products
 	if len(gqlProducts) == 0 {
-		return nil, fmt.Errorf("no products in graphql response")
+		return nil, 0, fmt.Errorf("no products in graphql response")
 	}
 
 	products := make([]models.Product, 0, len(gqlProducts))
 	for _, gp := range gqlProducts {
+		isAd := gp.Ads.ID != "" && gp.Ads.ID != "0"
+
+		var labels []models.Label
+		for _, lg := range gp.LabelGroups {
+			if lg.Title == "" {
+				continue
+			}
+			labels = append(labels, models.Label{
+				Title:    lg.Title,
+				Position: lg.Position,
+				Type:     lg.Type,
+			})
+		}
+
 		p := models.Product{
 			ID:              gp.ID.String(),
 			Name:            gp.Name,
 			Price:           parsePrice(gp.Price),
+			OriginalPrice:   parsePrice(gp.OriginalPrice),
+			PriceRange:      gp.PriceRange,
 			DiscountPercent: gp.DiscountPercentage,
 			Category:        gp.CategoryBreadcrumb,
 			ImageURL:        gp.ImageURL,
 			URL:             gp.URL,
+			IsAd:            isAd,
+			Labels:          labels,
+			Wishlist:        gp.Wishlist,
 			Platform:        "tokopedia",
 			ScrapedAt:       time.Now(),
 			Strategy:        "graphql",
@@ -232,7 +265,7 @@ func parseSearchResponse(data []byte) ([]models.Product, error) {
 		products = append(products, p)
 	}
 
-	return products, nil
+	return products, totalData, nil
 }
 
 // parsePrice extracts a numeric price from strings like "Rp100.000" or "Rp 1.234.567".
