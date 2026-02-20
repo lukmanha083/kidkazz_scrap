@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -118,7 +119,7 @@ func (h *HeadlessBrowserStrategy) openPage(ctx context.Context, pageURL string) 
 	if h.launcherURL != "" {
 		l = launcher.MustNewManaged(h.launcherURL)
 	} else {
-		l = launcher.New().Headless(true)
+		l = launcher.New().Headless(true).Logger(io.Discard)
 	}
 	controlURL, err := l.Launch()
 	if err != nil {

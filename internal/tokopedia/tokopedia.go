@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/lukman83/kidkazz-scrap/internal/models"
@@ -118,6 +119,8 @@ func (t *Scraper) SearchAll(ctx context.Context, keyword string, pages, perPage 
 
 // executeWithFallback races fast strategies concurrently, then falls back to slow strategies.
 func (t *Scraper) executeWithFallback(ctx context.Context, req platform.Request) ([]models.Product, error) {
+	var strategyErrors []string
+
 	// Phase 1: Race fast strategies concurrently
 	raceCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -125,6 +128,7 @@ func (t *Scraper) executeWithFallback(ctx context.Context, req platform.Request)
 	type strategyResult struct {
 		products []models.Product
 		strategy string
+		err      error
 	}
 	resultCh := make(chan strategyResult, len(t.fastStrategies))
 
@@ -132,26 +136,49 @@ func (t *Scraper) executeWithFallback(ctx context.Context, req platform.Request)
 		go func(s platform.Strategy) {
 			if t.rateLimiter != nil {
 				if err := t.rateLimiter.Wait(raceCtx); err != nil {
+					resultCh <- strategyResult{strategy: s.Name(), err: err}
 					return
 				}
 			}
 			r, err := s.Execute(raceCtx, req)
-			if err == nil && r != nil && len(r.Products) > 0 {
-				resultCh <- strategyResult{products: r.Products, strategy: s.Name()}
+			if err != nil {
+				resultCh <- strategyResult{strategy: s.Name(), err: err}
+				return
 			}
+			if r == nil || len(r.Products) == 0 {
+				resultCh <- strategyResult{strategy: s.Name(), err: fmt.Errorf("no products returned")}
+				return
+			}
+			resultCh <- strategyResult{products: r.Products, strategy: s.Name()}
 		}(s)
 	}
 
-	select {
-	case r := <-resultCh:
-		cancel()
-		platform.ReportProgress(ctx, fmt.Sprintf("Found %d products via %s", len(r.products), r.strategy))
-		return r.products, nil
-	case <-time.After(10 * time.Second):
-		cancel()
-		platform.ReportProgress(ctx, "Fast strategies timed out, trying headless browser...")
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	fastRemaining := len(t.fastStrategies)
+
+fastLoop:
+	for fastRemaining > 0 {
+		select {
+		case r := <-resultCh:
+			fastRemaining--
+			if r.err == nil && len(r.products) > 0 {
+				cancel()
+				platform.ReportProgress(ctx, fmt.Sprintf("Found %d products via %s", len(r.products), r.strategy))
+				return r.products, nil
+			}
+			if r.err != nil {
+				strategyErrors = append(strategyErrors, fmt.Sprintf("%s: %v", r.strategy, r.err))
+				platform.ReportProgress(ctx, fmt.Sprintf("Strategy %s failed, trying next...", r.strategy))
+			}
+		case <-timer.C:
+			cancel()
+			strategyErrors = append(strategyErrors, fmt.Sprintf("fast strategies: timed out after 10s (%d still pending)", fastRemaining))
+			platform.ReportProgress(ctx, "Fast strategies timed out, trying headless browser...")
+			break fastLoop
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 
 	// Phase 2: Fall back to slow strategies sequentially
@@ -163,11 +190,12 @@ func (t *Scraper) executeWithFallback(ctx context.Context, req platform.Request)
 			return result.Products, nil
 		}
 		if err != nil {
+			strategyErrors = append(strategyErrors, fmt.Sprintf("%s: %v", s.Name(), err))
 			platform.ReportProgress(ctx, fmt.Sprintf("Strategy %s failed, trying next...", s.Name()))
 		}
 	}
 
-	return nil, fmt.Errorf("all strategies exhausted for request: %+v", req)
+	return nil, fmt.Errorf("all strategies exhausted for %q:\n  %s", req.Keyword, strings.Join(strategyErrors, "\n  "))
 }
 
 func flatten(results [][]models.Product) []models.Product {
