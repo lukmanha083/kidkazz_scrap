@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -50,8 +51,9 @@ func initConfig() {
 	if v, _ := rootCmd.PersistentFlags().GetString("delay-profile"); v != "" {
 		cfg.DelayProfile = v
 	}
-	if v, _ := rootCmd.PersistentFlags().GetBool("respect-robots"); !v {
-		cfg.RespectRobots = false
+	if rootCmd.PersistentFlags().Changed("respect-robots") {
+		v, _ := rootCmd.PersistentFlags().GetBool("respect-robots")
+		cfg.RespectRobots = v
 	}
 	if v, _ := rootCmd.PersistentFlags().GetString("proxy-mode"); v != "" {
 		cfg.ProxyMode = v
@@ -77,6 +79,8 @@ func buildHTTPClient() *http.Client {
 
 	var proxyRotator *stealth.ProxyRotator
 	switch cfg.ProxyMode {
+	case "direct":
+		// No proxy
 	case "decodo":
 		if cfg.DecodoUsername != "" && cfg.DecodoPassword != "" {
 			proxyRotator = stealth.NewProxyRotator([]stealth.ProxyProvider{
@@ -87,7 +91,13 @@ func buildHTTPClient() *http.Client {
 					City:     cfg.DecodoCity,
 				},
 			})
+		} else {
+			log.Println("warning: proxy-mode=decodo but DECODO_USERNAME/DECODO_PASSWORD not set, falling back to direct")
 		}
+	case "wireguard", "custom":
+		log.Printf("warning: proxy-mode=%s is not yet implemented, falling back to direct", cfg.ProxyMode)
+	default:
+		log.Printf("warning: unknown proxy-mode %q, falling back to direct", cfg.ProxyMode)
 	}
 
 	robotsClient := &http.Client{}
