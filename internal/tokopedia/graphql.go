@@ -164,6 +164,13 @@ func parseSearchResponse(data []byte) ([]models.Product, int, error) {
 	}
 
 	ace := resp[0].Data.AceSearchProductV4
+	rc, err := ace.Header.ResponseCode.Int64()
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid graphql responseCode %q: %w", ace.Header.ResponseCode.String(), err)
+	}
+	if rc != 0 {
+		return nil, 0, fmt.Errorf("graphql error responseCode %d", rc)
+	}
 	totalData := ace.Header.TotalData
 	gqlProducts := ace.Data.Products
 	if len(gqlProducts) == 0 {
