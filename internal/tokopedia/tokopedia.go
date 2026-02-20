@@ -25,10 +25,10 @@ type Scraper struct {
 func NewScraper(client *http.Client, rateLimiter *rate.Limiter, maxConcurrent int) *Scraper {
 	return &Scraper{
 		fastStrategies: []platform.Strategy{
-			NewStaticPageStrategy(client),
 			NewGraphQLStrategy(client),
 		},
 		slowStrategies: []platform.Strategy{
+			NewStaticPageStrategy(client),
 			NewHeadlessBrowserStrategy(),
 		},
 		rateLimiter:   rateLimiter,

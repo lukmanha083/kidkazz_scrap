@@ -36,39 +36,45 @@ func (fp *FingerprintPool) Next() Fingerprint {
 
 func defaultFingerprints() []Fingerprint {
 	return []Fingerprint{
+		// Chrome 133 — Windows
 		{
-			UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-			Headers:   chromeHeaders(),
+			UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+			Headers:   chromeHeaders("133"),
 		},
+		// Chrome 133 — macOS
 		{
-			UserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-			Headers:   chromeHeaders(),
+			UserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+			Headers:   chromeHeaders("133"),
 		},
+		// Chrome 133 — Linux
 		{
-			UserAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-			Headers:   chromeHeaders(),
+			UserAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+			Headers:   chromeHeaders("133"),
 		},
+		// Firefox 135 — Windows
 		{
-			UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+			UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
 			Headers:   firefoxHeaders(),
 		},
+		// Firefox 135 — macOS
 		{
-			UserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+			UserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0",
 			Headers:   firefoxHeaders(),
 		},
+		// Edge 133 — Windows
 		{
-			UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-			Headers:   chromeHeaders(),
+			UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0",
+			Headers:   chromeHeaders("133"),
 		},
 	}
 }
 
-func chromeHeaders() http.Header {
+func chromeHeaders(version string) http.Header {
 	h := http.Header{}
 	h.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
 	h.Set("Accept-Language", "en-US,en;q=0.9")
 	h.Set("Accept-Encoding", "gzip, deflate, br")
-	h.Set("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`)
+	h.Set("Sec-Ch-Ua", `"Chromium";v="`+version+`", "Not(A:Brand";v="99", "Google Chrome";v="`+version+`"`)
 	h.Set("Sec-Ch-Ua-Mobile", "?0")
 	h.Set("Sec-Ch-Ua-Platform", `"Windows"`)
 	h.Set("Sec-Fetch-Dest", "document")
