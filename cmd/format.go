@@ -79,6 +79,9 @@ func cleanURL(rawURL string) string {
 }
 
 func truncate(s string, max int) string {
+	if max <= 0 {
+		return ""
+	}
 	r := []rune(s)
 	if len(r) <= max {
 		return s
