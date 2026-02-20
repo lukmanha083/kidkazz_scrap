@@ -69,8 +69,11 @@ func runCategories(cmd *cobra.Command, args []string) error {
 	for cat, n := range counts {
 		entries = append(entries, entry{cat, n})
 	}
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].count > entries[j].count
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].count != entries[j].count {
+			return entries[i].count > entries[j].count
+		}
+		return entries[i].category < entries[j].category
 	})
 
 	fmt.Printf("Popular categories for \"%s\" (%d products sampled):\n\n", keyword, len(products))
