@@ -8,11 +8,11 @@ Every scrape request runs through a **strategy fallback chain** — the tool tri
 
 | Priority | Strategy | Method |
 |----------|----------|--------|
-| 1 | Static | Fetch raw HTML, parse JSON-LD |
-| 2 | GraphQL | Hit Tokopedia's internal GraphQL API |
+| 1 | GraphQL | Hit Tokopedia's internal GraphQL API |
+| 2 | Static | Fetch raw HTML, parse JSON-LD |
 | 3 | Headless | Render with a headless browser (rod) |
 
-Strategies 1 and 2 race **concurrently** — whichever succeeds first wins. Strategy 3 only runs if both fast strategies fail.
+Strategy 1 runs first as the **fast strategy**. Strategies 2 and 3 are **slow fallbacks** that only run sequentially if the fast strategy fails.
 
 All HTTP requests pass through a **stealth pipeline**: robots.txt check, rate limiting, human-like delays, browser fingerprint rotation, and optional proxy routing.
 
@@ -55,6 +55,24 @@ kidkazz search "iphone 15" --platform tokopedia --limit 5 --format json
 ```bash
 kidkazz trending --limit 10
 kidkazz trending --category "elektronik" --format table
+```
+
+### Discover Popular Categories
+
+```bash
+# Sample best-seller products and rank categories by count
+kidkazz categories "action figure" --limit 60
+```
+
+Example output:
+
+```
+Popular categories for "action figure" (20 products sampled):
+
+  1. Mainan Hobi > Figure > Action Figure                (5 products)
+  2. Mainan Hobi > Figure > Figure Set                   (4 products)
+  3. Mainan Hobi > Model Kit > Mecha Model Gunpla        (2 products)
+  ...
 ```
 
 ### Start MCP Server
@@ -236,6 +254,8 @@ kidkazz_scrap/
 │   ├── root.go                     # CLI root, global flags, platform init
 │   ├── search.go                   # search subcommand
 │   ├── trending.go                 # trending subcommand
+│   ├── categories.go               # categories subcommand
+│   ├── format.go                   # Shared table formatting helpers
 │   └── serve.go                    # serve subcommand (MCP stdio)
 ├── mcp/
 │   ├── server.go                   # MCP server factory
@@ -243,7 +263,10 @@ kidkazz_scrap/
 ├── internal/
 │   ├── platform/
 │   │   ├── platform.go             # Scraper/Strategy interfaces
+│   │   ├── progress.go             # Context-based progress callback
 │   │   └── registry.go             # Platform registry
+│   ├── ui/
+│   │   └── spinner.go              # CLI progress spinner (stderr)
 │   ├── models/
 │   │   └── models.go               # Product, Shop types
 │   ├── tokopedia/
