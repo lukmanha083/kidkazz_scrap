@@ -52,7 +52,11 @@ func runTrending(cmd *cobra.Command, args []string) error {
 	}
 
 	if noAds {
+		before := len(products)
 		products = filterAds(products)
+		if len(products) < before {
+			fmt.Fprintf(os.Stderr, "Note: %d ad(s) filtered, showing %d of %d results\n", before-len(products), len(products), before)
+		}
 	}
 
 	switch format {
