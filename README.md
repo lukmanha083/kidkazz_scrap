@@ -83,13 +83,21 @@ Popular categories for "action figure" (20 products sampled):
   ...
 ```
 
-### Start MCP Server
+### Start MCP Server (stdio)
 
 ```bash
 kidkazz serve
 ```
 
 This starts an MCP server over **stdio**, exposing three tools for use with Claude Desktop, Claude Code, or any MCP client.
+
+### Start MCP Server (HTTP)
+
+```bash
+kidkazz serve-http --port 8080
+```
+
+Starts the MCP server over HTTP with optional Bearer token auth. Used for remote deployment (e.g. Fly.io). Set `KIDKAZZ_API_KEY` to enable authentication.
 
 ### Global Flags
 
@@ -151,6 +159,24 @@ Add to your Claude Desktop config (`~/.config/claude-desktop/claude_desktop_conf
 ```
 
 Replace `/path/to/kidkazz` with the absolute path to the built binary.
+
+### Remote HTTP Server
+
+If deployed on Fly.io (or any HTTP host), configure with the URL-based transport:
+
+```json
+{
+  "mcpServers": {
+    "kidkazz": {
+      "type": "streamable-http",
+      "url": "https://kidkazz-scrap.fly.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
 
 ### Tool Parameters
 
@@ -233,6 +259,13 @@ DECODO_CITY=jakarta
 
 > Place this `.env` file in the directory where you run the `kidkazz` binary. It is loaded automatically at startup.
 
+**HTTP Server**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8080` | HTTP listen port (set automatically by Fly.io) |
+| `KIDKAZZ_API_KEY` | | Bearer token for HTTP MCP auth (empty = no auth) |
+
 ### Proxy Modes
 
 **`direct`** (default) — No proxy. Relies on fingerprint rotation, delays, and rate limiting for stealth.
@@ -253,20 +286,82 @@ Controls the random delay between requests (on top of the rate limiter):
 | `normal` | 500ms | 2s | General use |
 | `aggressive` | 200ms | 800ms | Speed-focused, higher detection risk |
 
+## Deploy to Fly.io
+
+Deploy as an HTTP MCP server with auto-stop/start to minimize cost (~$2-3/month).
+
+### 1. Install Fly CLI and authenticate
+
+```bash
+curl -L https://fly.io/install.sh | sh
+fly auth login
+```
+
+### 2. Create the app
+
+```bash
+fly launch --no-deploy
+```
+
+Accept the defaults — the `fly.toml` is already configured for Singapore region (`sin`), closest to Indonesia.
+
+### 3. Set the API key secret
+
+```bash
+fly secrets set KIDKAZZ_API_KEY=$(openssl rand -hex 32)
+```
+
+Save this key — you'll need it for MCP client configuration. The key is stored encrypted in Fly.io and injected as an env var at runtime.
+
+### 4. Deploy
+
+```bash
+fly deploy
+```
+
+First deploy takes ~3-5 minutes (builds Docker image with Chromium).
+
+### 5. Verify
+
+```bash
+# Health check (no auth)
+curl https://kidkazz-scrap.fly.dev/healthz
+# → {"status":"ok"}
+
+# MCP call with auth
+curl -X POST https://kidkazz-scrap.fly.dev/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+```
+
+### 6. Monitor
+
+```bash
+fly status    # machine state
+fly logs      # live logs
+```
+
+The machine auto-stops when idle and wakes on the next request (3-5s cold start).
+
 ## Project Structure
 
 ```
 kidkazz_scrap/
 ├── main.go                         # Entry point
+├── Dockerfile                      # Multi-stage build (Go + Chromium)
+├── fly.toml                        # Fly.io deployment config
 ├── cmd/
 │   ├── root.go                     # CLI root, global flags, platform init
 │   ├── search.go                   # search subcommand
 │   ├── trending.go                 # trending subcommand
 │   ├── categories.go               # categories subcommand
 │   ├── format.go                   # Shared table formatting helpers
-│   └── serve.go                    # serve subcommand (MCP stdio)
+│   ├── serve.go                    # serve subcommand (MCP stdio)
+│   └── serve_http.go               # serve-http subcommand (MCP HTTP)
 ├── mcp/
-│   ├── server.go                   # MCP server factory
+│   ├── server.go                   # MCP stdio server
+│   ├── server_http.go              # MCP HTTP server (StreamableHTTP + auth)
 │   └── tools.go                    # Tool definitions + handlers
 ├── internal/
 │   ├── platform/
