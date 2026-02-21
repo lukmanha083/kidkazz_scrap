@@ -19,6 +19,10 @@ type Config struct {
 	RateBurst     int
 	MaxConcurrent int
 
+	// HTTP server
+	HTTPPort string
+	APIKey   string
+
 	// Proxy
 	ProxyMode       string // "decodo", "wireguard", "custom", "direct"
 	DecodoUsername   string
@@ -40,6 +44,7 @@ func DefaultConfig() *Config {
 		MaxConcurrent:   5,
 		ProxyMode:       "direct",
 		DecodoCountry:   "id",
+		HTTPPort:        "8080",
 	}
 }
 
@@ -92,5 +97,11 @@ func (c *Config) LoadFromEnv() {
 	}
 	if v := os.Getenv("KIDKAZZ_RESPECT_ROBOTS"); v == "false" {
 		c.RespectRobots = false
+	}
+	if v := os.Getenv("PORT"); v != "" {
+		c.HTTPPort = v
+	}
+	if v := os.Getenv("KIDKAZZ_API_KEY"); v != "" {
+		c.APIKey = v
 	}
 }
