@@ -18,6 +18,8 @@ var searchCmd = &cobra.Command{
 	RunE:  runSearch,
 }
 
+// init registers flags for the search command and adds the command to the root command.
+// It defines the --page, --limit, --format, and --no-ads flags used to control search behavior.
 func init() {
 	searchCmd.Flags().Int("page", 1, "Page number")
 	searchCmd.Flags().Int("limit", 20, "Products per page")
@@ -26,6 +28,11 @@ func init() {
 	rootCmd.AddCommand(searchCmd)
 }
 
+// runSearch executes the "search" command. It expects a single argument: the search keyword.
+// It reads flags (--page, --limit, --format, --no-ads, --platform), initializes platforms,
+// obtains the requested scraper, performs the search, optionally filters promoted products when
+// --no-ads is set, and writes results to stdout as a table or indented JSON. Returns an error if
+// scraper retrieval or the search operation fails.
 func runSearch(cmd *cobra.Command, args []string) error {
 	initPlatforms()
 

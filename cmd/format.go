@@ -68,7 +68,8 @@ func formatPrice(n int64) string {
 }
 
 // cleanURL strips tracking query params (extParam, search_id, src, etc.)
-// and returns just the product page URL.
+// cleanURL removes query parameters from the provided URL and returns the resulting URL string.
+// If the input cannot be parsed as a URL, it returns the original rawURL unchanged.
 func cleanURL(rawURL string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -78,7 +79,8 @@ func cleanURL(rawURL string) string {
 	return u.String()
 }
 
-// filterAds removes ad products from the slice.
+// filterAds returns a new slice containing only products that are not advertisements.
+// The original slice is not modified and the relative order of kept products is preserved.
 func filterAds(products []models.Product) []models.Product {
 	filtered := make([]models.Product, 0, len(products))
 	for _, p := range products {
@@ -89,6 +91,10 @@ func filterAds(products []models.Product) []models.Product {
 	return filtered
 }
 
+// truncate truncates s to at most max runes, adding "..." when max is greater than 3.
+// If max is less than or equal to 0 an empty string is returned.
+// If s contains max or fewer runes it is returned unchanged.
+// If max is less than or equal to 3 the function returns the first max runes with no ellipsis.
 func truncate(s string, max int) string {
 	if max <= 0 {
 		return ""

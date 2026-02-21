@@ -17,6 +17,8 @@ var trendingCmd = &cobra.Command{
 	RunE:  runTrending,
 }
 
+// init registers CLI flags for the trending command (limit, category, format, no-ads)
+// and adds trendingCmd to the root command.
 func init() {
 	trendingCmd.Flags().Int("limit", 10, "Number of products")
 	trendingCmd.Flags().String("category", "", "Category filter")
@@ -25,6 +27,11 @@ func init() {
 	rootCmd.AddCommand(trendingCmd)
 }
 
+// runTrending executes the "trending" command: it initializes platform integrations, reads flags
+// (limit, category, format, no-ads, platform), fetches trending products from the selected platform,
+// optionally filters out promoted products when --no-ads is set, and writes the results as a table
+// or indented JSON to stdout.
+// It returns an error if the requested platform cannot be obtained or if fetching trending products fails.
 func runTrending(cmd *cobra.Command, args []string) error {
 	initPlatforms()
 
