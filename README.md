@@ -2,6 +2,8 @@
 
 Go CLI tool and MCP server for scraping Indonesian marketplace data. Currently supports **Tokopedia**, with a pluggable architecture for adding more platforms.
 
+Each product includes procurement and marketing fields: **original price**, **discount %**, **price range**, **promo labels** (Cashback, Flash Sale, etc.), **ad detection**, and **wishlist status** — useful for demand intelligence and price benchmarking.
+
 ## How It Works
 
 Every scrape request runs through a **strategy fallback chain** — the tool tries the lightest method first and only escalates if it fails:
@@ -46,6 +48,9 @@ kidkazz search "laptop gaming" --limit 10
 # Table output
 kidkazz search "sepatu nike" --format table --page 2 --limit 20
 
+# Filter out promoted/ad products — only organic results
+kidkazz search "iphone 15" --format table --limit 20 --no-ads
+
 # Specify platform explicitly
 kidkazz search "iphone 15" --platform tokopedia --limit 5 --format json
 ```
@@ -55,6 +60,9 @@ kidkazz search "iphone 15" --platform tokopedia --limit 5 --format json
 ```bash
 kidkazz trending --limit 10
 kidkazz trending --category "elektronik" --format table
+
+# Best sellers without paid promotion noise
+kidkazz trending --category "kaos dalam anak" --format table --limit 20 --no-ads
 ```
 
 ### Discover Popular Categories
@@ -268,11 +276,11 @@ kidkazz_scrap/
 │   ├── ui/
 │   │   └── spinner.go              # CLI progress spinner (stderr)
 │   ├── models/
-│   │   └── models.go               # Product, Shop types
+│   │   └── models.go               # Product, Shop, Label types
 │   ├── tokopedia/
 │   │   ├── tokopedia.go            # Scraper orchestration (strategy racing)
-│   │   ├── static.go               # Strategy 1: HTML + JSON-LD
-│   │   ├── graphql.go              # Strategy 2: GraphQL API
+│   │   ├── graphql.go              # Strategy 1: GraphQL API (fast)
+│   │   ├── static.go               # Strategy 2: HTML + JSON-LD
 │   │   ├── queries.go              # GraphQL query strings
 │   │   └── headless.go             # Strategy 3: Headless browser
 │   ├── httputil/
