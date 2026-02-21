@@ -78,6 +78,17 @@ func cleanURL(rawURL string) string {
 	return u.String()
 }
 
+// filterAds removes ad products from the slice.
+func filterAds(products []models.Product) []models.Product {
+	filtered := make([]models.Product, 0, len(products))
+	for _, p := range products {
+		if !p.IsAd {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
 func truncate(s string, max int) string {
 	if max <= 0 {
 		return ""
