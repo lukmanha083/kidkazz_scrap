@@ -21,6 +21,7 @@ func init() {
 	trendingCmd.Flags().Int("limit", 10, "Number of products")
 	trendingCmd.Flags().String("category", "", "Category filter")
 	trendingCmd.Flags().String("format", "json", "Output format: json, table")
+	trendingCmd.Flags().Bool("no-ads", false, "Exclude ad/promoted products")
 	rootCmd.AddCommand(trendingCmd)
 }
 
@@ -30,6 +31,7 @@ func runTrending(cmd *cobra.Command, args []string) error {
 	limit, _ := cmd.Flags().GetInt("limit")
 	category, _ := cmd.Flags().GetString("category")
 	format, _ := cmd.Flags().GetString("format")
+	noAds, _ := cmd.Flags().GetBool("no-ads")
 	platformName, _ := cmd.Flags().GetString("platform")
 
 	scraper, err := platform.Get(platformName)
@@ -47,6 +49,10 @@ func runTrending(cmd *cobra.Command, args []string) error {
 	spin.Stop()
 	if err != nil {
 		return fmt.Errorf("trending failed: %w", err)
+	}
+
+	if noAds {
+		products = filterAds(products)
 	}
 
 	switch format {
