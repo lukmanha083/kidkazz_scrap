@@ -121,9 +121,9 @@ func (h *HeadlessBrowserStrategy) openPage(ctx context.Context, pageURL string) 
 		l = launcher.MustNewManaged(h.launcherURL)
 	} else {
 		l = launcher.New().Headless(true).Logger(io.Discard)
-	}
-	if bin := os.Getenv("ROD_BROWSER_BIN"); bin != "" {
-		l = l.Bin(bin)
+		if bin := os.Getenv("ROD_BROWSER_BIN"); bin != "" {
+			l = l.Bin(bin).NoSandbox(true)
+		}
 	}
 	controlURL, err := l.Launch()
 	if err != nil {

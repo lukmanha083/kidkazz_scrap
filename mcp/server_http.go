@@ -1,10 +1,11 @@
 package mcp
 
 import (
-	"fmt"
+	"crypto/subtle"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -34,20 +35,30 @@ func ServeHTTP(addr, apiKey string) error {
 	}
 	mux.Handle("/mcp", mcpHandler)
 
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
 	log.Printf("KidKazz MCP HTTP server listening on %s", addr)
-	return http.ListenAndServe(addr, mux)
+	return srv.ListenAndServe()
 }
 
 func bearerAuth(apiKey string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
-			http.Error(w, fmt.Sprintf(`{"error":"missing Authorization header"}`), http.StatusUnauthorized)
+			w.Header().Set("WWW-Authenticate", `Bearer realm="mcp"`)
+			http.Error(w, `{"error":"missing Authorization header"}`, http.StatusUnauthorized)
 			return
 		}
-		token := strings.TrimPrefix(auth, "Bearer ")
-		if token == auth || token != apiKey {
-			http.Error(w, fmt.Sprintf(`{"error":"invalid token"}`), http.StatusForbidden)
+		token, found := strings.CutPrefix(auth, "Bearer ")
+		if !found || subtle.ConstantTimeCompare([]byte(token), []byte(apiKey)) != 1 {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="mcp", error="invalid_token"`)
+			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r)
